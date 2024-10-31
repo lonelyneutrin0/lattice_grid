@@ -1,4 +1,2 @@
-/.venv
-/Include
-/Lib
-/Scripts
+.gitignore
+/frames

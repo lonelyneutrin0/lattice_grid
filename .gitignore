@@ -1,2 +1,4 @@
-.gitignore
 /frames
+image.png
+output_video.mp4
+.gitignore

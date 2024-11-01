@@ -135,7 +135,7 @@ class Annealer:
         }
         return solution(**solargs)
 
-solver = Annealer(iterations=1000, ml=8000, T_0=1e-6, T_f=1e-12)
+solver = Annealer(iterations=1000, ml=8000, T_0=1000, T_f=1)
 y = solver.optimize(pixel_data)
 image = Image.fromarray(y.x)
 image.save("final.png")

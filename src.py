@@ -2,7 +2,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
-width, height = 100, 100
+width, height = 20, 20
 color1 = (255, 0, 0) 
 color2 = (0, 0, 255) 
 
@@ -17,7 +17,6 @@ pixel_data[1::2, ::2] = color2  # Fill odd rows, even columns with color2
 
 # Create an image from the array
 image = Image.fromarray(pixel_data)
-
 # Save and show the image
 image.save("image.png")
 
@@ -27,12 +26,14 @@ class solution:
     energies: np.ndarray
     accepts: np.ndarray
     rejects: np.ndarray
+    configs: list[np.ndarray]
     """ 
     Container class for the solution and statistics 
     :param x: The final pixel grid of data points 
     :param energies: The energy series of the graph 
     :param accepts: The cumalative number of accepts 
     :param rejects: The cumalative number of rejects
+    :param configs: Accepted configs
     """
 @dataclass
 class Annealer: 
@@ -64,7 +65,7 @@ class Annealer:
         accepts = np.zeros(self.iterations)
         rejects = np.zeros(self.iterations)
         temperatures = np.linspace(self.T_0, self.T_f, self.iterations)
-        
+        configs = []
         # Nearest Neighbors
         right_neighbor = np.zeros_like(x)
         left_neighbor = np.zeros_like(x)
@@ -89,9 +90,6 @@ class Annealer:
             energies[iter] = energy
             
             for i in range(self.ml):
-                if i%100 == 0:
-                    plt.imshow(x, interpolation='nearest')
-                    plt.savefig(f'frames/img_{(iter*self.ml+i):08d}')
                 # Switch two elements of the grid 
                 new_grid = np.copy(x)
                 ran_i1 = np.random.randint(new_grid.shape[0])
@@ -108,7 +106,7 @@ class Annealer:
                 top_neighbor[1:, :] = new_grid[:-1, :]
                 bottom_neighbor[:-1, :] = new_grid[1:, :]
                 
-
+                
                 right_neighbor[:, -1] = new_grid[:, -1]
                 left_neighbor[:, 0] = new_grid[:, 0]
                 top_neighbor[0, :] = new_grid[0, :]
@@ -118,59 +116,70 @@ class Annealer:
                 br =  np.exp(-diff/temperatures[iter]) 
                 if(diff < 0 or  br > np.random.uniform()):
                     x = new_grid 
+                    configs.append(x)
                     energy = new_energy
-                    
                     accepts[iter] = 1
                 else: 
                     rejects[iter] = 1
                 if(diff < 0): 
                     optimal_x = new_grid
-
+        
     
     
         solargs = { 
             'x': optimal_x, 
             'energies': energies, 
             'accepts': np.cumsum(accepts), 
-            'rejects': np.cumsum(rejects)
+            'rejects': np.cumsum(rejects),
+            'configs': configs
         }
         return solution(**solargs)
-                
-solver = Annealer(iterations=10, ml=100000, T_0=1e-6, T_f=1e-12)
+
+solver = Annealer(iterations=1000, ml=8000, T_0=1e-6, T_f=1e-12)
 y = solver.optimize(pixel_data)
 image = Image.fromarray(y.x)
 image.save("final.png")
 plt.close()
 plt.plot(np.arange(y.energies.size), y.energies)
-plt.show()
+plt.savefig('energies.png', dpi=800, bbox_inches='tight')
+plt.close()
+plt.plot(np.arange(y.accepts.size), y.accepts)
+plt.savefig('accepts.png', dpi=800, bbox_inches='tight')
+plt.close() 
+plt.plot(np.arange(y.rejects.size), y.rejects)
+plt.savefig('rejects.png', dpi=800, bbox_inches='tight')
 plt.close()
 plt.imshow(y.x, interpolation='nearest')
 plt.show()
+plt.close()
+# for i in range(len(y.configs)): 
+#         plt.imshow(y.configs[i], interpolation='nearest')
+#         plt.savefig(f'frames/img_{i:09d}')
+#         plt.close()
+# import os
+# import cv2
+# # Path to the folder containing images
+# image_folder = 'frames'
+# output_video = 'output_video.mp4'
+# frame_rate = 60  # Frames per second
 
-import os
-import cv2
-# Path to the folder containing images
-image_folder = 'frames'
-output_video = 'output_video.mp4'
-frame_rate = 60  # Frames per second
+# # Get list of all image files in the folder, sorted in order
+# images = [img for img in os.listdir(image_folder) if img.endswith((".png", ".jpg", ".jpeg"))]
+# print(images)
+# # Read the first image to get the frame size
+# first_image = cv2.imread(os.path.join(image_folder, images[0]))
+# height, width, layers = first_image.shape
 
-# Get list of all image files in the folder, sorted in order
-images = [img for img in os.listdir(image_folder) if img.endswith((".png", ".jpg", ".jpeg"))]
-print(images)
-# Read the first image to get the frame size
-first_image = cv2.imread(os.path.join(image_folder, images[0]))
-height, width, layers = first_image.shape
+# # Define the codec and create VideoWriter object
+# fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 files
+# video = cv2.VideoWriter(output_video, fourcc, frame_rate, (width, height))
 
-# Define the codec and create VideoWriter object
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 files
-video = cv2.VideoWriter(output_video, fourcc, frame_rate, (width, height))
+# # Loop through images and write them to the video
+# for image in images:
+#     img_path = os.path.join(image_folder, image)
+#     frame = cv2.imread(img_path)
+#     video.write(frame)
 
-# Loop through images and write them to the video
-for image in images:
-    img_path = os.path.join(image_folder, image)
-    frame = cv2.imread(img_path)
-    video.write(frame)
-
-# Release the VideoWriter object
-video.release()
-print("Video created successfully!")
+# # Release the VideoWriter object
+# video.release()
+# print("Video created successfully!")
